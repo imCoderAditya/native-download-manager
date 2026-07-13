@@ -1,0 +1,266 @@
+package com.native.download.manager.native_download_manager
+
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import android.webkit.MimeTypeMap
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.io.RandomAccessFile
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+import java.util.Locale
+
+interface DownloadCallback {
+    fun onProgress(taskId: String, downloaded: Long, total: Long, speed: Double, eta: Int)
+    fun onStatusChanged(taskId: String, status: Int, filePath: String?, error: String?)
+}
+
+class DownloadWorker(
+    private val context: Context,
+    private val request: PigeonDownloadRequest,
+    private val dbHelper: DownloadDatabaseHelper,
+    private val callback: DownloadCallback
+) : Runnable {
+
+    @Volatile
+    private var isPaused = false
+
+    @Volatile
+    private var isCanceled = false
+
+    fun pause() {
+        isPaused = true
+    }
+
+    fun cancel() {
+        isCanceled = true
+    }
+
+    override fun run() {
+        var connection: HttpURLConnection? = null
+        var inputStream: InputStream? = null
+        var outputStream: RandomAccessFile? = null
+        var file: File? = null
+
+        callback.onStatusChanged(request.id, 1, null, null) // downloading
+        dbHelper.updateTaskProgress(request.id, 1, 0, 0, 0.0, null, null)
+
+        try {
+            // Determine storage directory
+            val destDir = request.destinationDirectory?.let { File(it) }
+                ?: context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                ?: context.filesDir
+
+            if (!destDir.exists()) {
+                destDir.mkdirs()
+            }
+
+            var targetFile = File(destDir, request.fileName)
+            
+            // Check overwrite policy
+            if (targetFile.exists() && !request.overwrite) {
+                // If overwrite is false and file exists, rename to file(1).ext, file(2).ext
+                var counter = 1
+                val nameWithoutExt = targetFile.nameWithoutExtension
+                val ext = targetFile.extension
+                val extStr = if (ext.isNotEmpty()) ".$ext" else ""
+                while (targetFile.exists()) {
+                    targetFile = File(destDir, "$nameWithoutExt($counter)$extStr")
+                    counter++
+                }
+            }
+            file = targetFile
+
+            var downloadedBytes = 0L
+            if (file.exists() && (isPaused || dbHelper.getTask(request.id)?.status == 2L)) {
+                downloadedBytes = file.length()
+            } else if (file.exists() && request.overwrite) {
+                // If we aren't resuming a pause task and overwrite is true, delete existing file
+                file.delete()
+            }
+
+            var currentUrl = request.url
+            var redirectCount = 0
+            val maxRedirects = 5
+
+            while (true) {
+                val urlObj = URL(currentUrl)
+                connection = urlObj.openConnection() as HttpURLConnection
+                connection.connectTimeout = 15000
+                connection.readTimeout = 15000
+                connection.instanceFollowRedirects = false // we follow manually
+
+                // Request headers
+                request.headers.forEach { (key, value) ->
+                    if (key != null && value != null) {
+                        connection.setRequestProperty(key, value)
+                    }
+                }
+
+                // Range header if resuming
+                if (downloadedBytes > 0) {
+                    connection.setRequestProperty("Range", "bytes=$downloadedBytes-")
+                }
+
+                val responseCode = connection.responseCode
+
+                if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
+                    responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
+                    responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
+                    responseCode == 307 || responseCode == 308
+                ) {
+                    redirectCount++
+                    if (redirectCount > maxRedirects) {
+                        throw Exception("Too many HTTP redirects")
+                    }
+                    val newUrl = connection.getHeaderField("Location")
+                    currentUrl = URL(urlObj, newUrl).toString()
+                    connection.disconnect()
+                    continue
+                }
+                break
+            }
+
+            val responseCode = connection.responseCode
+            val isPartialContent = responseCode == HttpURLConnection.HTTP_PARTIAL
+
+            if (responseCode != HttpURLConnection.HTTP_OK && !isPartialContent) {
+                throw Exception("Server returned HTTP response code: $responseCode")
+            }
+
+            val contentLength = connection.contentLength.toLong()
+            var totalBytes = contentLength
+            if (isPartialContent) {
+                totalBytes = contentLength + downloadedBytes
+            } else {
+                downloadedBytes = 0L // reset since server didn't support partial content/range
+            }
+
+            // Disk space validation
+            val freeSpace = destDir.usableSpace
+            if (freeSpace < (totalBytes - downloadedBytes)) {
+                throw Exception("Insufficient storage space. Required: ${totalBytes - downloadedBytes} bytes, Free: $freeSpace bytes")
+            }
+
+            inputStream = connection.inputStream
+            outputStream = RandomAccessFile(file, "rw")
+            if (isPartialContent) {
+                outputStream.seek(downloadedBytes)
+            } else {
+                outputStream.setLength(0) // clear existing content
+            }
+
+            val buffer = ByteArray(4096)
+            var bytesRead: Int
+            var lastUpdateTimestamp = System.currentTimeMillis()
+            var bytesDownloadedSinceLastUpdate = 0L
+            var speed = 0.0
+
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                if (isPaused) {
+                    // Save pause status and exit
+                    callback.onStatusChanged(request.id, 2, file.absolutePath, null) // paused
+                    dbHelper.updateTaskProgress(request.id, 2, downloadedBytes, totalBytes, (downloadedBytes.toDouble() / totalBytes), file.absolutePath, null)
+                    return
+                }
+
+                if (isCanceled) {
+                    file.delete()
+                    callback.onStatusChanged(request.id, 5, null, null) // canceled
+                    dbHelper.updateTaskProgress(request.id, 5, 0, 0, 0.0, null, null)
+                    return
+                }
+
+                outputStream.write(buffer, 0, bytesRead)
+                downloadedBytes += bytesRead
+                bytesDownloadedSinceLastUpdate += bytesRead
+
+                val currentTime = System.currentTimeMillis()
+                val timeDiff = currentTime - lastUpdateTimestamp
+
+                if (timeDiff >= 1000) {
+                    speed = (bytesDownloadedSinceLastUpdate.toDouble() / (timeDiff.toDouble() / 1000.0))
+                    val progress = if (totalBytes > 0) downloadedBytes.toDouble() / totalBytes.toDouble() else 0.0
+                    val remainingBytes = totalBytes - downloadedBytes
+                    val eta = if (speed > 0) (remainingBytes / speed).toInt() else -1
+
+                    callback.onProgress(request.id, downloadedBytes, totalBytes, speed, eta)
+                    dbHelper.updateTaskProgress(request.id, 1, downloadedBytes, totalBytes, progress, file.absolutePath, null)
+
+                    lastUpdateTimestamp = currentTime
+                    bytesDownloadedSinceLastUpdate = 0
+                }
+            }
+
+            // Completed downloading
+            outputStream.close()
+            outputStream = null
+
+            // Validate Checksum if required
+            if (request.checksum != null && request.checksumAlgorithm != null) {
+                callback.onStatusChanged(request.id, 1, file.absolutePath, "Verifying checksum...")
+                val verified = verifyChecksum(file, request.checksum!!, request.checksumAlgorithm!!)
+                if (!verified) {
+                    throw Exception("File integrity verification failed. Checksum mismatch.")
+                }
+            }
+
+            // Register in MediaStore/system scans if public directory
+            scanFile(context, file)
+
+            callback.onStatusChanged(request.id, 3, file.absolutePath, null) // completed
+            dbHelper.updateTaskProgress(request.id, 3, totalBytes, totalBytes, 1.0, file.absolutePath, null)
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val errorMessage = e.message ?: "Unknown download error"
+            callback.onStatusChanged(request.id, 4, null, errorMessage) // failed
+            dbHelper.updateTaskProgress(request.id, 4, 0, 0, 0.0, null, errorMessage)
+        } finally {
+            try {
+                inputStream?.close()
+            } catch (e: Exception) {}
+            try {
+                outputStream?.close()
+            } catch (e: Exception) {}
+            connection?.disconnect()
+        }
+    }
+
+    private fun verifyChecksum(file: File, expected: String, algorithm: String): Boolean {
+        return try {
+            val digest = MessageDigest.getInstance(algorithm.uppercase(Locale.US))
+            val buffer = ByteArray(8192)
+            val fis = file.inputStream()
+            var read: Int
+            while (fis.read(buffer).also { read = it } != -1) {
+                digest.update(buffer, 0, read)
+            }
+            fis.close()
+            val hashBytes = digest.digest()
+            val sb = StringBuilder()
+            for (b in hashBytes) {
+                sb.append(String.format("%02x", b))
+            }
+            val actualChecksum = sb.toString()
+            actualChecksum.equals(expected, ignoreCase = true)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private fun scanFile(context: Context, file: File) {
+        try {
+            android.media.MediaScannerConnection.scanFile(
+                context,
+                arrayOf(file.absolutePath),
+                null
+            ) { path, uri ->
+                // Media scan complete
+            }
+        } catch (e: Exception) {}
+    }
+}
