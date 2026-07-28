@@ -1,4 +1,10 @@
+## 1.0.2
+
+- Fixed iOS Swift Package Manager (SPM) `FlutterFramework` dependency resolution.
+- Updated iOS build settings and example application version metadata.
+
 ## 1.0.1
+
 
 - Added default fallback to Android Public Downloads directory (`/storage/emulated/0/Download/`) so downloaded files immediately appear in the device File Manager, Gallery, and Downloads app.
 - Added `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` permissions to AndroidManifest for full compatibility across older and newer Android versions.
