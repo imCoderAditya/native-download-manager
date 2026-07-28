@@ -30,7 +30,7 @@ Add `native_download_manager` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  native_download_manager: ^1.0.0
+  native_download_manager: ^1.0.1
 ```
 
 ---
@@ -48,6 +48,8 @@ dependencies:
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 <uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 ```
 
 2. Register the service and boot receiver inside the `<application>` tag (they are merged automatically from the package, but make sure your Gradle configuration has `minSdkVersion >= 21`):

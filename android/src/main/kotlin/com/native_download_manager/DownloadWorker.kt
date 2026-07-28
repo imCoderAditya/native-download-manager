@@ -1,4 +1,4 @@
-package com.native.download.manager.native_download_manager
+package com.native_download_manager
 
 import android.content.Context
 import android.net.Uri
@@ -50,9 +50,24 @@ class DownloadWorker(
 
         try {
             // Determine storage directory
-            val destDir = request.destinationDirectory?.let { File(it) }
-                ?: context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                ?: context.filesDir
+            var destDir: File? = null
+            if (!request.destinationDirectory.isNullOrEmpty()) {
+                destDir = File(request.destinationDirectory)
+            } else {
+                try {
+                    val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    if (publicDir != null && (publicDir.exists() || publicDir.mkdirs())) {
+                        destDir = publicDir
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            if (destDir == null || (!destDir.exists() && !destDir.mkdirs())) {
+                destDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                    ?: context.filesDir
+            }
 
             if (!destDir.exists()) {
                 destDir.mkdirs()

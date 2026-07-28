@@ -17,7 +17,7 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         super.init()
         loadTasks()
         
-        let config = URLSessionConfiguration.background(withIdentifier: "com.native.download.manager.background")
+        let config = URLSessionConfiguration.background(withIdentifier: "com.native_download_manager.background")
         config.sharedContainerIdentifier = nil // Set up if App Group is needed
         config.sessionSendsLaunchEvents = true
         

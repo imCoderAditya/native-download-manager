@@ -1,4 +1,4 @@
-package com.native.download.manager.native_download_manager
+package com.native_download_manager
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -13,8 +13,8 @@ import androidx.core.app.NotificationCompat
 class DownloadService : Service() {
 
     companion object {
-        const val ACTION_START = "com.native.download.manager.ACTION_START"
-        const val ACTION_STOP = "com.native.download.manager.ACTION_STOP"
+        const val ACTION_START = "com.native_download_manager.ACTION_START"
+        const val ACTION_STOP = "com.native_download_manager.ACTION_STOP"
         private const val CHANNEL_ID = "native_download_channel"
         private const val NOTIFICATION_ID = 101
     }

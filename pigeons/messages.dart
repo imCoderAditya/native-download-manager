@@ -4,7 +4,7 @@ import 'package:pigeon/pigeon.dart';
   dartOut: 'lib/src/native_api.g.dart',
   dartOptions: DartOptions(),
   kotlinOut: 'android/src/main/kotlin/com/native/download/manager/native_download_manager/Messages.g.kt',
-  kotlinOptions: KotlinOptions(package: "com.native.download.manager.native_download_manager"),
+  kotlinOptions: KotlinOptions(package: "com.native_download_manager"),
   swiftOut: 'ios/native_download_manager/Sources/native_download_manager/Messages.g.swift',
   swiftOptions: SwiftOptions(),
 ))

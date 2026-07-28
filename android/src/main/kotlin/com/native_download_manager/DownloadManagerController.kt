@@ -1,4 +1,4 @@
-package com.native.download.manager.native_download_manager
+package com.native_download_manager
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -66,19 +66,19 @@ class DownloadManagerController private constructor(private val context: Context
 
     @Synchronized
     fun enqueue(request: PigeonDownloadRequest) {
-        val task = PigeonDownloadTask.Builder().apply {
-            setId(request.id)
-            setUrl(request.url)
-            setFileName(request.fileName)
-            setFilePath(null)
-            setStatus(0L) // enqueued
-            setProgress(0.0)
-            setDownloadedBytes(0L)
-            setTotalBytes(0L)
-            setSpeed(0.0)
-            setEtaSeconds(-1)
-            setError(null)
-        }.build()
+        val task = PigeonDownloadTask(
+            id = request.id,
+            url = request.url,
+            fileName = request.fileName,
+            filePath = null,
+            status = 0L, // enqueued
+            progress = 0.0,
+            downloadedBytes = 0L,
+            totalBytes = 0L,
+            speed = 0.0,
+            etaSeconds = -1L,
+            error = null
+        )
 
         dbHelper.insertOrUpdateTask(task, request)
         
@@ -292,19 +292,19 @@ class DownloadManagerController private constructor(private val context: Context
             activeFutures.remove(taskId)
         }
 
-        val updatedTask = PigeonDownloadTask.Builder().apply {
-            setId(task.id)
-            setUrl(task.url)
-            setFileName(task.fileName)
-            setFilePath(filePath ?: task.filePath)
-            setStatus(status.toLong())
-            setProgress(task.progress)
-            setDownloadedBytes(task.downloadedBytes)
-            setTotalBytes(task.totalBytes)
-            setSpeed(0.0)
-            setEtaSeconds(-1)
-            setError(error)
-        }.build()
+        val updatedTask = PigeonDownloadTask(
+            id = task.id,
+            url = task.url,
+            fileName = task.fileName,
+            filePath = filePath ?: task.filePath,
+            status = status.toLong(),
+            progress = task.progress,
+            downloadedBytes = task.downloadedBytes,
+            totalBytes = task.totalBytes,
+            speed = 0.0,
+            etaSeconds = -1L,
+            error = error
+        )
 
         mainHandler.post {
             try {

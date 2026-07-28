@@ -1,4 +1,4 @@
-group = "com.native.download.manager.native_download_manager"
+group = "com.native_download_manager"
 version = "1.0-SNAPSHOT"
 
 buildscript {
@@ -26,7 +26,7 @@ plugins {
 }
 
 android {
-    namespace = "com.native.download.manager.native_download_manager"
+    namespace = "com.native_download_manager"
 
     compileSdk = 36
 

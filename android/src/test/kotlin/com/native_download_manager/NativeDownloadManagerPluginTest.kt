@@ -1,4 +1,4 @@
-package com.native.download.manager.native_download_manager
+package com.native_download_manager
 
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel

@@ -1,4 +1,4 @@
-package com.native.download.manager.native_download_manager
+package com.native_download_manager
 
 import android.content.BroadcastReceiver
 import android.content.Context

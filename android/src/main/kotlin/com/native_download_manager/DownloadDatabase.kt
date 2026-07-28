@@ -1,4 +1,4 @@
-package com.native.download.manager.native_download_manager
+package com.native_download_manager
 
 import android.content.ContentValues
 import android.content.Context
@@ -120,19 +120,19 @@ class DownloadDatabaseHelper(context: Context) :
         val cursor = db.rawQuery("SELECT * FROM $TABLE_TASKS", null)
         if (cursor.moveToFirst()) {
             do {
-                val task = PigeonDownloadTask.Builder().apply {
-                    setId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)))
-                    setUrl(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_URL)))
-                    setFileName(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_NAME)))
-                    setFilePath(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_PATH)))
-                    setStatus(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_STATUS)))
-                    setProgress(cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROGRESS)))
-                    setDownloadedBytes(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_DOWNLOADED_BYTES)))
-                    setTotalBytes(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_TOTAL_BYTES)))
-                    setSpeed(0.0)
-                    setEtaSeconds(-1)
-                    setError(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ERROR)))
-                }.build()
+                val task = PigeonDownloadTask(
+                    id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)),
+                    url = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_URL)),
+                    fileName = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_NAME)),
+                    filePath = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_PATH)),
+                    status = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_STATUS)),
+                    progress = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROGRESS)),
+                    downloadedBytes = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_DOWNLOADED_BYTES)),
+                    totalBytes = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_TOTAL_BYTES)),
+                    speed = 0.0,
+                    etaSeconds = -1L,
+                    error = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ERROR))
+                )
                 list.add(task)
             } while (cursor.moveToNext())
         }
@@ -145,19 +145,19 @@ class DownloadDatabaseHelper(context: Context) :
         val cursor = db.rawQuery("SELECT * FROM $TABLE_TASKS WHERE $COLUMN_ID = ?", arrayOf(taskId))
         var task: PigeonDownloadTask? = null
         if (cursor.moveToFirst()) {
-            task = PigeonDownloadTask.Builder().apply {
-                setId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)))
-                setUrl(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_URL)))
-                setFileName(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_NAME)))
-                setFilePath(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_PATH)))
-                setStatus(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_STATUS)))
-                setProgress(cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROGRESS)))
-                setDownloadedBytes(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_DOWNLOADED_BYTES)))
-                setTotalBytes(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_TOTAL_BYTES)))
-                setSpeed(0.0)
-                setEtaSeconds(-1)
-                setError(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ERROR)))
-            }.build()
+            task = PigeonDownloadTask(
+                id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)),
+                url = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_URL)),
+                fileName = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_NAME)),
+                filePath = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_PATH)),
+                status = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_STATUS)),
+                progress = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROGRESS)),
+                downloadedBytes = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_DOWNLOADED_BYTES)),
+                totalBytes = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_TOTAL_BYTES)),
+                speed = 0.0,
+                etaSeconds = -1L,
+                error = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ERROR))
+            )
         }
         cursor.close()
         return task
@@ -181,20 +181,20 @@ class DownloadDatabaseHelper(context: Context) :
                 e.printStackTrace()
             }
 
-            request = PigeonDownloadRequest.Builder().apply {
-                setId(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)))
-                setUrl(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_URL)))
-                setFileName(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_NAME)))
-                setDestinationDirectory(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_PATH))) // using same column or default path
-                setHeaders(headersMap)
-                setWifiOnly(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_WIFI_ONLY)) == 1)
-                setChargingOnly(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CHARGING_ONLY)) == 1)
-                setRequiresBatteryNotLow(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_BATTERY_NOT_LOW)) == 1)
-                setPriority(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_PRIORITY)))
-                setChecksum(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CHECKSUM)))
-                setChecksumAlgorithm(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CHECKSUM_ALGO)))
-                setOverwrite(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_OVERWRITE)) == 1)
-            }.build()
+            request = PigeonDownloadRequest(
+                id = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ID)),
+                url = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_URL)),
+                fileName = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_NAME)),
+                destinationDirectory = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_FILE_PATH)),
+                headers = headersMap,
+                wifiOnly = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_WIFI_ONLY)) == 1,
+                chargingOnly = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CHARGING_ONLY)) == 1,
+                requiresBatteryNotLow = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_BATTERY_NOT_LOW)) == 1,
+                priority = cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_PRIORITY)),
+                checksum = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CHECKSUM)),
+                checksumAlgorithm = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_CHECKSUM_ALGO)),
+                overwrite = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_OVERWRITE)) == 1
+            )
         }
         cursor.close()
         return request
