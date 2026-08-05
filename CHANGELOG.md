@@ -1,3 +1,14 @@
+## 1.0.4
+
+- Added `AppDownloadService.currentDownloadWidget()` & `CurrentDownloadWidget` in-page live progress card component.
+- Added `AppDownloadService.startDownload(...)` helper for triggering background downloads from button `onPressed` handlers without popup modals.
+- Added 100% full UI customization options across all widgets (`cardBackgroundColor`, `borderRadius`, `progressBarColor`, `accentColor`, typography, custom `badgeBuilder`, `iconBuilder`, and control button visibility parameters).
+- Added Android `MediaStore.Downloads` integration so completed files automatically appear at the top of the phone's **"My Files" / "Downloads"** app.
+- Improved Android Scoped Storage compatibility on Android 10+ (API 29+).
+- Enhanced `overwrite: false` duplicate file resolution to auto-increment file names (`file(1).ext`) seamlessly on Android and iOS.
+- Updated 10 Ready-to-Use pure dynamic UI templates.
+- Updated comprehensive API parameter tables and documentation in `README.md`.
+
 ## 1.0.3
 
 - Fixed an issue where `DownloadTask.statusStream` remained open after a task reached a terminal state (`completed`, `failed`, `canceled`), causing `await for` loops in Dart to hang indefinitely.
@@ -10,7 +21,6 @@
 - Updated iOS build settings and example application version metadata.
 
 ## 1.0.1
-
 
 - Added default fallback to Android Public Downloads directory (`/storage/emulated/0/Download/`) so downloaded files immediately appear in the device File Manager, Gallery, and Downloads app.
 - Added `READ_EXTERNAL_STORAGE` and `WRITE_EXTERNAL_STORAGE` permissions to AndroidManifest for full compatibility across older and newer Android versions.

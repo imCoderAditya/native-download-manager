@@ -37,7 +37,7 @@ Add `native_download_manager` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  native_download_manager: ^1.0.3
+  native_download_manager: ^1.0.4
 ```
 
 Import it in your Dart code:

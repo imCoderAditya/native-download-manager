@@ -1,6 +1,6 @@
 name: native_download_manager
 description: "A production-ready Flutter package providing native background download capability for Android and iOS."
-version: 1.0.3
+version: 1.0.4
 
 homepage: https://github.com/adityaku/native_download_manager
 
