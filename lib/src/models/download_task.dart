@@ -24,13 +24,32 @@ class DownloadTask {
   });
 
   /// Stream of progress updates for this specific task.
-  Stream<DownloadProgress> get progressStream {
-    return NativeDownloadManager().progressStream.where((p) => p.taskId == id);
+  /// Completes automatically when progress reaches 100%.
+  Stream<DownloadProgress> get progressStream async* {
+    await for (final progress in NativeDownloadManager()
+        .progressStream
+        .where((p) => p.taskId == id)) {
+      yield progress;
+      if (progress.downloadedBytes > 0 &&
+          progress.totalBytes > 0 &&
+          progress.downloadedBytes >= progress.totalBytes) {
+        break;
+      }
+    }
   }
 
   /// Stream of task updates (status, error, file path changes) for this specific task.
-  Stream<DownloadTask> get statusStream {
-    return NativeDownloadManager().statusStream.where((t) => t.id == id);
+  /// Completes automatically after emitting a terminal status (completed, failed, canceled).
+  Stream<DownloadTask> get statusStream async* {
+    await for (final task
+        in NativeDownloadManager().statusStream.where((t) => t.id == id)) {
+      yield task;
+      if (task.status == DownloadStatus.completed ||
+          task.status == DownloadStatus.failed ||
+          task.status == DownloadStatus.canceled) {
+        break;
+      }
+    }
   }
 
   /// Pauses the download.

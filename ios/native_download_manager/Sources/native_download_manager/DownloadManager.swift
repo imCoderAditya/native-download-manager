@@ -229,15 +229,20 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
     private func updateTaskStatus(taskId: String, status: Int64, filePath: String? = nil, error: String? = nil) {
         guard let task = tasks[taskId] else { return }
         
+        let isCompleted = status == 3
+        let totalBytes = (isCompleted && task.totalBytes <= 0) ? task.downloadedBytes : task.totalBytes
+        let downloadedBytes = isCompleted ? totalBytes : task.downloadedBytes
+        let progress = isCompleted ? 1.0 : task.progress
+
         let updatedTask = PigeonDownloadTask(
             id: taskId,
             url: task.url,
             fileName: task.fileName,
             filePath: filePath ?? task.filePath,
             status: status,
-            progress: task.progress,
-            downloadedBytes: task.downloadedBytes,
-            totalBytes: task.totalBytes,
+            progress: progress,
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes,
             speed: 0.0,
             etaSeconds: -1,
             error: error
@@ -300,14 +305,8 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         
         // Handle Overwrite Policy
         if fileManager.fileExists(atPath: destinationUrl.path) && !request.overwrite {
-            var counter = 1
-            let nameWithoutExt = destinationUrl.deletingPathExtension().lastPathComponent
-            let ext = destinationUrl.pathExtension
-            let extStr = ext.isEmpty ? "" : ".\(ext)"
-            while fileManager.fileExists(atPath: destinationUrl.path) {
-                destinationUrl = documentUrl.appendingPathComponent("\(nameWithoutExt)(\(counter))\(extStr)")
-                counter += 1
-            }
+            self.updateTaskStatus(taskId: taskId, status: 4, error: "FileAlreadyExistsException: File already exists at destination path \(destinationUrl.path)")
+            return
         } else if fileManager.fileExists(atPath: destinationUrl.path) && request.overwrite {
             try? fileManager.removeItem(at: destinationUrl)
         }
@@ -324,6 +323,16 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         
         do {
             try fileManager.moveItem(at: location, to: destinationUrl)
+            let finalSize = (try? fileManager.attributesOfItem(atPath: destinationUrl.path)[.size] as? Int64) ?? 0
+            DispatchQueue.main.async {
+                self.flutterApi?.onTaskProgressUpdated(
+                    taskId: taskId,
+                    downloadedBytes: finalSize,
+                    totalBytes: finalSize,
+                    speed: 0.0,
+                    etaSeconds: 0
+                ) { _ in }
+            }
             self.updateTaskStatus(taskId: taskId, status: 3, filePath: destinationUrl.path) // completed
         } catch {
             self.updateTaskStatus(taskId: taskId, status: 4, error: "Failed to move file to destination: \(error.localizedDescription)")

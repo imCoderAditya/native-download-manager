@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:native_download_manager/native_download_manager.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('DownloadStatus Enums', () {
     test('converts correctly from index', () {
       expect(DownloadStatus.fromInt(0), DownloadStatus.enqueued);
@@ -156,6 +158,27 @@ void main() {
       expect(mappedTask.progress.downloadedBytes, 1000);
       expect(mappedTask.progress.totalBytes, 1000);
       expect(mappedTask.progress.percentage, 100.0);
+    });
+  });
+
+  group('DownloadTask Streams Lifecycle', () {
+    test('statusStream and progressStream create valid streams', () async {
+      final task = DownloadTask(
+        id: 'test_task_1',
+        url: 'http://example.com',
+        fileName: 'file.pdf',
+        status: DownloadStatus.enqueued,
+        progress: const DownloadProgress(
+          taskId: 'test_task_1',
+          downloadedBytes: 0,
+          totalBytes: 100,
+          speed: 0,
+          etaSeconds: -1,
+        ),
+      );
+
+      expect(task.statusStream, isA<Stream<DownloadTask>>());
+      expect(task.progressStream, isA<Stream<DownloadProgress>>());
     });
   });
 }

@@ -1,3 +1,9 @@
+## 1.0.3
+
+- Fixed an issue where `DownloadTask.statusStream` remained open after a task reached a terminal state (`completed`, `failed`, `canceled`), causing `await for` loops in Dart to hang indefinitely.
+- Fixed progress calculation and status synchronization for chunked downloads (`totalBytes == -1`).
+- Enforced strict failure with `FileAlreadyExistsException` when `overwrite: false` and the destination file already exists.
+
 ## 1.0.2
 
 - Fixed iOS Swift Package Manager (SPM) `FlutterFramework` dependency resolution.

@@ -292,15 +292,20 @@ class DownloadManagerController private constructor(private val context: Context
             activeFutures.remove(taskId)
         }
 
+        val isCompleted = status == 3
+        val totalBytes = if (isCompleted && task.totalBytes <= 0) task.downloadedBytes else task.totalBytes
+        val downloadedBytes = if (isCompleted) totalBytes else task.downloadedBytes
+        val progress = if (isCompleted) 1.0 else task.progress
+
         val updatedTask = PigeonDownloadTask(
             id = task.id,
             url = task.url,
             fileName = task.fileName,
             filePath = filePath ?: task.filePath,
             status = status.toLong(),
-            progress = task.progress,
-            downloadedBytes = task.downloadedBytes,
-            totalBytes = task.totalBytes,
+            progress = progress,
+            downloadedBytes = downloadedBytes,
+            totalBytes = totalBytes,
             speed = 0.0,
             etaSeconds = -1L,
             error = error

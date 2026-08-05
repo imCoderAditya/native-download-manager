@@ -77,15 +77,7 @@ class DownloadWorker(
             
             // Check overwrite policy
             if (targetFile.exists() && !request.overwrite) {
-                // If overwrite is false and file exists, rename to file(1).ext, file(2).ext
-                var counter = 1
-                val nameWithoutExt = targetFile.nameWithoutExtension
-                val ext = targetFile.extension
-                val extStr = if (ext.isNotEmpty()) ".$ext" else ""
-                while (targetFile.exists()) {
-                    targetFile = File(destDir, "$nameWithoutExt($counter)$extStr")
-                    counter++
-                }
+                throw Exception("FileAlreadyExistsException: File already exists at destination path ${targetFile.absolutePath}")
             }
             file = targetFile
 
@@ -148,16 +140,18 @@ class DownloadWorker(
 
             val contentLength = connection.contentLength.toLong()
             var totalBytes = contentLength
-            if (isPartialContent) {
+            if (isPartialContent && contentLength > 0) {
                 totalBytes = contentLength + downloadedBytes
-            } else {
+            } else if (!isPartialContent) {
                 downloadedBytes = 0L // reset since server didn't support partial content/range
             }
 
             // Disk space validation
-            val freeSpace = destDir.usableSpace
-            if (freeSpace < (totalBytes - downloadedBytes)) {
-                throw Exception("Insufficient storage space. Required: ${totalBytes - downloadedBytes} bytes, Free: $freeSpace bytes")
+            if (totalBytes > 0) {
+                val freeSpace = destDir.usableSpace
+                if (freeSpace < (totalBytes - downloadedBytes)) {
+                    throw Exception("Insufficient storage space. Required: ${totalBytes - downloadedBytes} bytes, Free: $freeSpace bytes")
+                }
             }
 
             inputStream = connection.inputStream
@@ -178,7 +172,8 @@ class DownloadWorker(
                 if (isPaused) {
                     // Save pause status and exit
                     callback.onStatusChanged(request.id, 2, file.absolutePath, null) // paused
-                    dbHelper.updateTaskProgress(request.id, 2, downloadedBytes, totalBytes, (downloadedBytes.toDouble() / totalBytes), file.absolutePath, null)
+                    val pauseProgress = if (totalBytes > 0) (downloadedBytes.toDouble() / totalBytes) else 0.0
+                    dbHelper.updateTaskProgress(request.id, 2, downloadedBytes, totalBytes, pauseProgress, file.absolutePath, null)
                     return
                 }
 
@@ -199,8 +194,8 @@ class DownloadWorker(
                 if (timeDiff >= 1000) {
                     speed = (bytesDownloadedSinceLastUpdate.toDouble() / (timeDiff.toDouble() / 1000.0))
                     val progress = if (totalBytes > 0) downloadedBytes.toDouble() / totalBytes.toDouble() else 0.0
-                    val remainingBytes = totalBytes - downloadedBytes
-                    val eta = if (speed > 0) (remainingBytes / speed).toInt() else -1
+                    val remainingBytes = if (totalBytes > 0) totalBytes - downloadedBytes else 0L
+                    val eta = if (totalBytes > 0 && speed > 0) (remainingBytes / speed).toInt() else -1
 
                     callback.onProgress(request.id, downloadedBytes, totalBytes, speed, eta)
                     dbHelper.updateTaskProgress(request.id, 1, downloadedBytes, totalBytes, progress, file.absolutePath, null)
@@ -214,6 +209,8 @@ class DownloadWorker(
             outputStream.close()
             outputStream = null
 
+            val finalTotalBytes = if (totalBytes > 0) totalBytes else downloadedBytes
+
             // Validate Checksum if required
             if (request.checksum != null && request.checksumAlgorithm != null) {
                 callback.onStatusChanged(request.id, 1, file.absolutePath, "Verifying checksum...")
@@ -226,8 +223,10 @@ class DownloadWorker(
             // Register in MediaStore/system scans if public directory
             scanFile(context, file)
 
+            // Flush final 100% progress update and database update BEFORE triggering completed status callback
+            callback.onProgress(request.id, finalTotalBytes, finalTotalBytes, 0.0, 0)
+            dbHelper.updateTaskProgress(request.id, 3, finalTotalBytes, finalTotalBytes, 1.0, file.absolutePath, null)
             callback.onStatusChanged(request.id, 3, file.absolutePath, null) // completed
-            dbHelper.updateTaskProgress(request.id, 3, totalBytes, totalBytes, 1.0, file.absolutePath, null)
 
         } catch (e: Exception) {
             e.printStackTrace()
