@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:native_download_manager/native_download_manager.dart';
 
 void main() {
@@ -13,6 +12,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Native Download Manager',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -28,703 +28,411 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.system,
-      home: const DownloadManagerScreen(),
+      home: const HomePage(),
     );
   }
 }
 
-class DownloadManagerScreen extends StatefulWidget {
-  const DownloadManagerScreen({super.key});
-
-  @override
-  State<DownloadManagerScreen> createState() => _DownloadManagerScreenState();
-}
-
-class _DownloadManagerScreenState extends State<DownloadManagerScreen>
-    with SingleTickerProviderStateMixin {
-  final _urlController = TextEditingController(
-    text:
-        'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-  );
-  final _fileNameController = TextEditingController(text: 'big_buck_bunny.mp4');
-
-  bool _wifiOnly = false;
-  bool _chargingOnly = false;
-  bool _overwrite = false;
-  DownloadPriority _priority = DownloadPriority.normal;
-  int _concurrencyLimit = 3;
-
-  List<DownloadTask> _tasks = [];
-  late TabController _tabController;
-  late StreamSubscription<DownloadTask> _statusSubscription;
-  late StreamSubscription<DownloadProgress> _progressSubscription;
-
-  // Custom pre-configured files for quick testing
-  final List<Map<String, String>> _sampleFiles = [
-    {
-      'name': 'Big Buck Bunny (Video, 158MB)',
-      'url':
-          'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      'filename': 'big_buck_bunny.mp4',
-    },
-    {
-      'name': 'Elephant\'s Dream (Video, 109MB)',
-      'url':
-          'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      'filename': 'elephants_dream.mp4',
-    },
-    {
-      'name': 'Sample PDF Document (1MB)',
-      'url':
-          'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-      'filename': 'dummy.pdf',
-    },
-    {
-      'name': 'Invalid/Failing URL Test',
-      'url': 'https://invalid-domain-that-does-not-exist.com/file.zip',
-      'filename': 'failed_file.zip',
-    },
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-
-    // Set initial concurrency limit
-    NativeDownloadManager().setConcurrencyLimit(_concurrencyLimit);
-
-    _refreshTasks();
-
-    // Listen to status & progress changes to update the UI reactively
-    _statusSubscription = NativeDownloadManager().statusStream.listen((task) {
-      _refreshTasks();
-    });
-
-    _progressSubscription = NativeDownloadManager().progressStream.listen((
-      progress,
-    ) {
-      setState(() {
-        final index = _tasks.indexWhere((t) => t.id == progress.taskId);
-        if (index != -1) {
-          final t = _tasks[index];
-          _tasks[index] = DownloadTask(
-            id: t.id,
-            url: t.url,
-            fileName: t.fileName,
-            filePath: t.filePath,
-            status: t.status,
-            progress: progress,
-            error: t.error,
-          );
-        }
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _urlController.dispose();
-    _fileNameController.dispose();
-    _statusSubscription.cancel();
-    _progressSubscription.cancel();
-    super.dispose();
-  }
-
-  Future<void> _refreshTasks() async {
-    final list = await NativeDownloadManager().downloads();
-    setState(() {
-      _tasks = list;
-    });
-  }
-
-  void _startNewDownload() async {
-    final url = _urlController.text.trim();
-    final name = _fileNameController.text.trim();
-
-    if (url.isEmpty || name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill out URL and Filename')),
-      );
-      return;
-    }
-
-    final constraints = <NetworkConstraint>[];
-    if (_wifiOnly) constraints.add(NetworkConstraint.wifiOnly);
-    if (_chargingOnly) constraints.add(NetworkConstraint.chargingOnly);
-
-    try {
-      await NativeDownloadManager.download(
-        url: url,
-        fileName: name,
-        priority: _priority,
-        networkConstraints: constraints,
-        overwrite: _overwrite,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Enqueued: $name')));
-      _refreshTasks();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-    }
-  }
-
-  void _selectSample(Map<String, String> sample) {
-    setState(() {
-      _urlController.text = sample['url']!;
-      _fileNameController.text = sample['filename']!;
-    });
-  }
+/// Main Home Screen featuring Download Buttons calling the package functions
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final activeTasks = _tasks
-        .where(
-          (t) =>
-              t.status == DownloadStatus.downloading ||
-              t.status == DownloadStatus.enqueued ||
-              t.status == DownloadStatus.paused,
-        )
-        .toList();
-    final completedTasks = _tasks
-        .where(
-          (t) =>
-              t.status == DownloadStatus.completed ||
-              t.status == DownloadStatus.failed ||
-              t.status == DownloadStatus.canceled,
-        )
-        .toList();
-    final isWide = MediaQuery.of(context).size.width > 720;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Native Download Manager'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshTasks),
           IconButton(
-            icon: const Icon(Icons.delete_sweep),
-            tooltip: 'Clear history',
-            onPressed: () async {
-              await NativeDownloadManager().clearHistory();
-              _refreshTasks();
+            icon: const Icon(Icons.folder_special_rounded),
+            tooltip: 'Recent Downloads',
+            onPressed: () {
+              // ⚡ Call function to show Active & Past downloads dialog
+              AppDownloadService.showDownloadsDialog(context);
             },
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Active (${activeTasks.length})'),
-            Tab(text: 'History (${completedTasks.length})'),
-          ],
-        ),
       ),
-      body: isWide
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Left panel for adding download requests (Web responsive or vertical layout)
-                Expanded(
-                  flex: 2,
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'New Download Request',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 12),
-                            _buildDownloadForm(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Right panel showing downloads list
-                Expanded(
-                  flex: 3,
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildTaskList(activeTasks),
-                      _buildTaskList(completedTasks),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildTaskList(activeTasks),
-                _buildTaskList(completedTasks),
-              ],
-            ),
-      floatingActionButton: isWide
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _showNewDownloadSheet,
-              icon: const Icon(Icons.add),
-              label: const Text('New Download'),
-            ),
-    );
-  }
-
-  void _showNewDownloadSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'New Download Request',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildDownloadForm(setSheetState: setSheetState),
-                  ],
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircleAvatar(
+                radius: 40,
+                backgroundColor: Colors.teal,
+                child: Icon(
+                  Icons.cloud_download_rounded,
+                  color: Colors.white,
+                  size: 44,
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
-  }
+              const SizedBox(height: 16),
+              const Text(
+                'Native Download Manager',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'High-performance background downloads with live progress dialogs.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+              const SizedBox(height: 32),
 
-  Widget _buildDownloadForm({void Function(void Function())? setSheetState}) {
-    void updateState(void Function() fn) {
-      if (setSheetState != null) {
-        setSheetState(fn);
-      }
-      setState(fn);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextField(
-          controller: _urlController,
-          decoration: const InputDecoration(
-            labelText: 'Download URL',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _fileNameController,
-          decoration: const InputDecoration(
-            labelText: 'File Name',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        DropdownButtonFormField<DownloadPriority>(
-          initialValue: _priority,
-          decoration: const InputDecoration(
-            labelText: 'Priority',
-            border: OutlineInputBorder(),
-          ),
-          items: DownloadPriority.values.map((p) {
-            return DropdownMenuItem(
-              value: p,
-              child: Text(p.name.toUpperCase()),
-            );
-          }).toList(),
-          onChanged: (val) {
-            if (val != null) {
-              updateState(() => _priority = val);
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        CheckboxListTile(
-          title: const Text('WiFi Only'),
-          value: _wifiOnly,
-          onChanged: (val) {
-            if (val != null) {
-              updateState(() => _wifiOnly = val);
-            }
-          },
-        ),
-        CheckboxListTile(
-          title: const Text('Charging Only'),
-          value: _chargingOnly,
-          onChanged: (val) {
-            if (val != null) {
-              updateState(() => _chargingOnly = val);
-            }
-          },
-        ),
-        CheckboxListTile(
-          title: const Text('Overwrite if file exists'),
-          value: _overwrite,
-          onChanged: (val) {
-            if (val != null) {
-              updateState(() => _overwrite = val);
-            }
-          },
-        ),
-        const SizedBox(height: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Concurrency Limit: $_concurrencyLimit'),
-            SizedBox(
-              width: double.infinity,
-              child: Slider(
-                min: 1,
-                max: 5,
-                divisions: 4,
-                label: _concurrencyLimit.toString(),
-                value: _concurrencyLimit.toDouble(),
-                onChanged: (val) {
-                  updateState(() {
-                    _concurrencyLimit = val.toInt();
-                    NativeDownloadManager().setConcurrencyLimit(
-                      _concurrencyLimit,
+              // 🔴 BUTTON 1: Download Catbox PDF
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // ⚡ Call downloadPdf helper function on button press!
+                    AppDownloadService.downloadWithDialog(
+                      context: context,
+                      overwrite: false,
+                      showRecent: false,
+                      url: 'https://files.catbox.moe/vxirfe.pdf',
+                      fileName: 'vxirfe_document1.pdf',
+                      dialogTitle: 'Downloading Catbox PDF...',
                     );
-                  });
-                },
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_rounded),
+                  label: const Text('Download Catbox PDF (Button Call)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              _startNewDownload();
-              if (setSheetState != null) {
-                Navigator.pop(context);
-              }
-            },
-            icon: const Icon(Icons.download),
-            label: const Text('Queue Download'),
+              const SizedBox(height: 14),
+
+              // 🔵 BUTTON 2: View Active & Recent Downloads Dialog
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    // ⚡ Call showDownloadsDialog function on button press!
+                    AppDownloadService.showDownloadsDialog(context);
+                  },
+                  icon: const Icon(Icons.history_rounded),
+                  label: const Text('View Active & Recent Downloads'),
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // 🟣 BUTTON 3: Open 10 Templates Catalog
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NativeDownloadTemplateSuite(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.grid_view_rounded),
+                  label: const Text('Explore All 10 Templates Catalog'),
+                ),
+              ),
+            ],
           ),
         ),
-        const Divider(height: 32),
-        Text(
-          'Quick Samples',
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        ..._sampleFiles.map((sample) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 6.0),
+      ),
+    );
+  }
+}
+
+/// Example Catalog Menu Runner (Lives in example app, not in package core).
+class NativeDownloadTemplateSuite extends StatefulWidget {
+  const NativeDownloadTemplateSuite({super.key});
+
+  @override
+  State<NativeDownloadTemplateSuite> createState() =>
+      _NativeDownloadTemplateSuiteState();
+}
+
+class _NativeDownloadTemplateSuiteState
+    extends State<NativeDownloadTemplateSuite> {
+  final List<Map<String, dynamic>> _templateCatalog = const [
+    {
+      'id': '01',
+      'title': 'Instant Auto-Start PDF Download',
+      'subtitle':
+          'Pass PDF URL and autoStart: true to launch instant download & progress dialog on page load.',
+      'icon': Icons.bolt_rounded,
+      'color': Colors.teal,
+      'widget': PdfInvoiceTemplatePage(
+        title: 'Instant Catbox PDF Download',
+        url: 'https://files.catbox.moe/vxirfe.pdf',
+        fileName: 'vxirfe_document.pdf',
+        autoStart: true,
+      ),
+    },
+    {
+      'id': '02',
+      'title': 'Downloads Dashboard & Hub',
+      'subtitle':
+          'Real-time analytics cards, active task counters, live speed gauges, & quick download request form.',
+      'icon': Icons.dashboard_rounded,
+      'color': Colors.blue,
+      'widget': DashboardTemplatePage(
+        defaultUrl:
+            'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        defaultFileName: 'sample_video.mp4',
+      ),
+    },
+    {
+      'id': '03',
+      'title': 'PDF & Invoice Downloader List',
+      'subtitle':
+          'Invoices, receipts, & document downloads with progress dialog overlay & active/recent downloads list.',
+      'icon': Icons.picture_as_pdf_rounded,
+      'color': Colors.redAccent,
+      'widget': PdfInvoiceTemplatePage(
+        invoices: [
+          {
+            'id': 'PDF-2026-CATBOX',
+            'title': 'Catbox PDF Document',
+            'url': 'https://files.catbox.moe/vxirfe.pdf',
+            'filename': 'vxirfe_document.pdf',
+            'size': 'Direct Link PDF',
+          },
+          {
+            'id': 'INV-2026-001',
+            'title': 'Monthly Subscription Invoice',
+            'url':
+                'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+            'filename': 'Invoice_INV-2026-001.pdf',
+            'size': '1.2 MB',
+          },
+        ],
+      ),
+    },
+    {
+      'id': '04',
+      'title': 'Media & Video Stream Downloader',
+      'subtitle':
+          'Large video files (100MB+), speed tracking, ETA calculation, pause, resume, & cancel controls.',
+      'icon': Icons.video_library_rounded,
+      'color': Colors.purple,
+      'widget': MediaVideoTemplatePage(
+        videos: [
+          {
+            'title': 'Big Buck Bunny (158 MB)',
+            'url':
+                'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            'filename': 'big_buck_bunny_large.mp4',
+          },
+          {
+            'title': 'Elephant\'s Dream (109 MB)',
+            'url':
+                'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+            'filename': 'elephants_dream_large.mp4',
+          },
+        ],
+      ),
+    },
+    {
+      'id': '05',
+      'title': 'Batch & Concurrency Queue Manager',
+      'subtitle':
+          'Multi-file parallel downloads with dynamic queue concurrency limits (1 to 5 parallel downloads).',
+      'icon': Icons.dynamic_feed_rounded,
+      'color': Colors.teal,
+      'widget': BatchDownloadTemplatePage(
+        urls: [
+          'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+          'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        ],
+      ),
+    },
+    {
+      'id': '06',
+      'title': 'Auth Header & API Security',
+      'subtitle':
+          'Protected downloads with Bearer Auth Tokens, API Client Keys, Cookies, & Custom HTTP Headers.',
+      'icon': Icons.security_rounded,
+      'color': Colors.amber,
+      'widget': AuthHeaderTemplatePage(
+        protectedUrl:
+            'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+        fileName: 'Protected_Report.pdf',
+      ),
+    },
+    {
+      'id': '07',
+      'title': 'Priority Queue Scheduler',
+      'subtitle':
+          'Task scheduling with HIGH, NORMAL, and LOW system execution priorities.',
+      'icon': Icons.low_priority_rounded,
+      'color': Colors.indigo,
+      'widget': PriorityQueueTemplatePage(
+        sampleUrl:
+            'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      ),
+    },
+    {
+      'id': '08',
+      'title': 'Network & Power Constraints',
+      'subtitle':
+          'WiFi-only, Charging-only, & Battery-not-low automated download rules.',
+      'icon': Icons.network_check_rounded,
+      'color': Colors.deepOrange,
+      'widget': ConstraintsTemplatePage(
+        sampleUrl:
+            'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      ),
+    },
+    {
+      'id': '09',
+      'title': 'Checksum Integrity Verifier',
+      'subtitle':
+          'Automated file integrity verification using MD5 and SHA-256 hash validation.',
+      'icon': Icons.verified_user_rounded,
+      'color': Colors.green,
+      'widget': ChecksumVerifierTemplatePage(
+        sampleUrl:
+            'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      ),
+    },
+    {
+      'id': '10',
+      'title': 'Storage History Manager',
+      'subtitle':
+          'Storage space analyzer, downloaded files manager, history clearing, & local file deletion.',
+      'icon': Icons.folder_special_rounded,
+      'color': Colors.blueGrey,
+      'widget': StorageHistoryTemplatePage(),
+    },
+    {
+      'id': '11',
+      'title': 'Notifications & Drawer Actions',
+      'subtitle':
+          'Interactive Android Notification Drawer buttons (Pause, Resume, Cancel, & Retry).',
+      'icon': Icons.notifications_active_rounded,
+      'color': Colors.pink,
+      'widget': NotificationCustomUiTemplatePage(
+        sampleUrl:
+            'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      ),
+    },
+  ];
+
+  void _openTemplateScreen(Widget templateWidget) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => templateWidget));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Download Templates Catalog'),
+        elevation: 2,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _templateCatalog.length,
+        itemBuilder: (context, index) {
+          final item = _templateCatalog[index];
+          final color = item['color'] as Color;
+          final icon = item['icon'] as IconData;
+          final widgetPage = item['widget'] as Widget;
+
+          return Card(
+            margin: const EdgeInsets.only(bottom: 14),
+            elevation: 1,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: InkWell(
-              onTap: () {
-                updateState(() => _selectSample(sample));
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+              onTap: () => _openTemplateScreen(widgetPage),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.insert_drive_file,
-                      size: 20,
-                      color: Colors.teal,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        sample['name']!,
-                        style: const TextStyle(fontSize: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
                       ),
+                      child: Icon(icon, color: color, size: 28),
                     ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _buildTaskList(List<DownloadTask> tasks) {
-    if (tasks.isEmpty) {
-      return const Center(child: Text('No download tasks'));
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: tasks.length,
-      itemBuilder: (context, index) {
-        final task = tasks[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 1,
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            task.fileName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '#${item['id']}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: color,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item['title'] as String,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 6),
                           Text(
-                            task.url,
-                            style: Theme.of(context).textTheme.bodySmall,
-                            maxLines: 1,
+                            item['subtitle'] as String,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                            maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    _buildStatusChip(task.status),
+                    const SizedBox(width: 8),
+                    Icon(Icons.chevron_right_rounded, color: Colors.grey[400]),
                   ],
                 ),
-                const SizedBox(height: 12),
-                if (task.status == DownloadStatus.downloading) ...[
-                  LinearProgressIndicator(
-                    value: task.progress.percentage / 100.0,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        task.progress.formattedSizeRatio,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        task.progress.formattedSpeed,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        'ETA: ${task.progress.formattedEta}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ] else if (task.status == DownloadStatus.paused) ...[
-                  LinearProgressIndicator(
-                    value: task.progress.percentage / 100.0,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${task.progress.percentage.toStringAsFixed(1)}% paused',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        task.progress.formattedSizeRatio,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ] else if (task.status == DownloadStatus.enqueued) ...[
-                  const LinearProgressIndicator(value: null),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Waiting in queue...',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ] else if (task.status == DownloadStatus.failed) ...[
-                  Text(
-                    'Error: ${task.error ?? "Unknown error"}',
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                ] else if (task.status == DownloadStatus.completed) ...[
-                  Text(
-                    'Saved: ${task.filePath ?? "Local path not available"}',
-                    style: const TextStyle(color: Colors.green, fontSize: 12),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (task.status == DownloadStatus.downloading)
-                      IconButton(
-                        icon: const Icon(Icons.pause),
-                        tooltip: 'Pause',
-                        onPressed: () => task.pause(),
-                      ),
-                    if (task.status == DownloadStatus.paused)
-                      IconButton(
-                        icon: const Icon(Icons.play_arrow),
-                        tooltip: 'Resume',
-                        onPressed: () => task.resume(),
-                      ),
-                    if (task.status == DownloadStatus.downloading ||
-                        task.status == DownloadStatus.enqueued ||
-                        task.status == DownloadStatus.paused)
-                      IconButton(
-                        icon: const Icon(Icons.cancel_outlined),
-                        tooltip: 'Cancel',
-                        onPressed: () => task.cancel(),
-                      ),
-                    if (task.status == DownloadStatus.failed ||
-                        task.status == DownloadStatus.canceled)
-                      IconButton(
-                        icon: const Icon(Icons.refresh),
-                        tooltip: 'Retry',
-                        onPressed: () => task.retry(),
-                      ),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline,
-                        color: Colors.redAccent,
-                      ),
-                      tooltip: 'Remove',
-                      onPressed: () => _showDeleteConfirmation(task),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatusChip(DownloadStatus status) {
-    Color color;
-    switch (status) {
-      case DownloadStatus.enqueued:
-        color = Colors.orange;
-        break;
-      case DownloadStatus.downloading:
-        color = Colors.blue;
-        break;
-      case DownloadStatus.paused:
-        color = Colors.grey;
-        break;
-      case DownloadStatus.completed:
-        color = Colors.green;
-        break;
-      case DownloadStatus.failed:
-        color = Colors.red;
-        break;
-      case DownloadStatus.canceled:
-        color = Colors.purple;
-        break;
-    }
-
-    return Chip(
-      label: Text(
-        status.name.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 10,
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      backgroundColor: color,
-      padding: EdgeInsets.zero,
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  void _showDeleteConfirmation(DownloadTask task) {
-    bool deleteFile = true;
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Delete Download Task'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Are you sure you want to delete "${task.fileName}"?'),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    title: const Text('Delete local file from storage'),
-                    value: deleteFile,
-                    onChanged: (val) {
-                      if (val != null) setState(() => deleteFile = val);
-                    },
-                  ),
-                ],
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    final navigator = Navigator.of(context);
-                    await task.delete(deleteFile: deleteFile);
-                    navigator.pop();
-                    _refreshTasks();
-                  },
-                  child: const Text(
-                    'Delete',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }

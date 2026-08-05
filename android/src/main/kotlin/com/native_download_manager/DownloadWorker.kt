@@ -74,15 +74,23 @@ class DownloadWorker(
             }
 
             var targetFile = File(destDir, request.fileName)
+            val isResuming = isPaused || dbHelper.getTask(request.id)?.status == 2L
             
             // Check overwrite policy
-            if (targetFile.exists() && !request.overwrite) {
-                throw Exception("FileAlreadyExistsException: File already exists at destination path ${targetFile.absolutePath}")
+            if (targetFile.exists() && !request.overwrite && !isResuming) {
+                val nameWithoutExt = targetFile.nameWithoutExtension
+                val ext = targetFile.extension
+                var counter = 1
+                while (targetFile.exists()) {
+                    val newName = if (ext.isNotEmpty()) "$nameWithoutExt($counter).$ext" else "$nameWithoutExt($counter)"
+                    targetFile = File(destDir, newName)
+                    counter++
+                }
             }
             file = targetFile
 
             var downloadedBytes = 0L
-            if (file.exists() && (isPaused || dbHelper.getTask(request.id)?.status == 2L)) {
+            if (file.exists() && isResuming) {
                 downloadedBytes = file.length()
             } else if (file.exists() && request.overwrite) {
                 // If we aren't resuming a pause task and overwrite is true, delete existing file

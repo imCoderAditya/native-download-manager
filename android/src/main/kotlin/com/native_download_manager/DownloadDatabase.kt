@@ -96,6 +96,7 @@ class DownloadDatabaseHelper(context: Context) :
             put(COLUMN_PROGRESS, progress)
             if (filePath != null) {
                 put(COLUMN_FILE_PATH, filePath)
+                put(COLUMN_FILE_NAME, java.io.File(filePath).name)
             }
             if (error != null) {
                 put(COLUMN_ERROR, error)

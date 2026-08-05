@@ -237,7 +237,7 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         let updatedTask = PigeonDownloadTask(
             id: taskId,
             url: task.url,
-            fileName: task.fileName,
+            fileName: filePath != nil ? URL(fileURLWithPath: filePath!).lastPathComponent : task.fileName,
             filePath: filePath ?? task.filePath,
             status: status,
             progress: progress,
@@ -300,13 +300,26 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
               let request = requests[taskId] else { return }
         
         let fileManager = FileManager.default
-        let documentUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let documentUrl: URL
+        if let customDir = request.destinationDirectory, !customDir.isEmpty {
+            documentUrl = URL(fileURLWithPath: customDir)
+        } else {
+            documentUrl = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+        }
         var destinationUrl = documentUrl.appendingPathComponent(request.fileName)
         
         // Handle Overwrite Policy
         if fileManager.fileExists(atPath: destinationUrl.path) && !request.overwrite {
-            self.updateTaskStatus(taskId: taskId, status: 4, error: "FileAlreadyExistsException: File already exists at destination path \(destinationUrl.path)")
-            return
+            var counter = 1
+            let nameWithoutExt = (request.fileName as NSString).deletingPathExtension
+            let ext = (request.fileName as NSString).pathExtension
+            var newUrl = destinationUrl
+            while fileManager.fileExists(atPath: newUrl.path) {
+                let newName = ext.isEmpty ? "\(nameWithoutExt)(\(counter))" : "\(nameWithoutExt)(\(counter)).\(ext)"
+                newUrl = documentUrl.appendingPathComponent(newName)
+                counter += 1
+            }
+            destinationUrl = newUrl
         } else if fileManager.fileExists(atPath: destinationUrl.path) && request.overwrite {
             try? fileManager.removeItem(at: destinationUrl)
         }

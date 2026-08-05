@@ -323,10 +323,17 @@ class DownloadManagerController private constructor(private val context: Context
     }
 
     private fun updateForegroundService() {
-        val hasActiveTasks = activeWorkers.isNotEmpty()
+        val activeEntry = activeWorkers.entries.firstOrNull()
         val intent = Intent(context, DownloadService::class.java)
-        if (hasActiveTasks) {
+        if (activeEntry != null) {
+            val taskId = activeEntry.key
+            val task = dbHelper.getTask(taskId)
             intent.action = DownloadService.ACTION_START
+            intent.putExtra(DownloadService.EXTRA_TASK_ID, taskId)
+            intent.putExtra(DownloadService.EXTRA_TASK_NAME, task?.fileName ?: "File")
+            intent.putExtra(DownloadService.EXTRA_PROGRESS, ((task?.progress ?: 0.0) * 100).toInt())
+            intent.putExtra(DownloadService.EXTRA_STATUS, task?.status?.toInt() ?: 1)
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
