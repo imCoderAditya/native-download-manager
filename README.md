@@ -52,7 +52,7 @@ import 'package:native_download_manager/native_download_manager.dart';
 
 ### 🤖 Android Setup
 
-1. Add the permissions to your `android/app/src/main/AndroidManifest.xml`:
+1. Add permissions to `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
@@ -94,7 +94,7 @@ import 'package:native_download_manager/native_download_manager.dart';
 platform :ios, '13.0'
 ```
 
-2. To make files visible in the iOS **Files** app (under "On My iPhone"), add the following keys to your `ios/Runner/Info.plist`:
+2. To make files visible in the iOS **Files** app (under "On My iPhone"), add the following keys to `ios/Runner/Info.plist`:
 
 ```xml
 <key>UIFileSharingEnabled</key>
@@ -158,45 +158,106 @@ AppDownloadService.showDownloadsDialog(context);
 
 ---
 
-### 4. Direct Engine API
+## 📚 Complete API Reference & Parameters
 
-For low-level control, use `NativeDownloadManager`:
+### 1. `AppDownloadService.downloadWithDialog(...)`
 
-```dart
-// Start downloading a file
-final task = await NativeDownloadManager.download(
-  url: "https://example.com/movie.mp4",
-  fileName: "movie.mp4",
-  priority: DownloadPriority.high,
-  networkConstraints: [NetworkConstraint.wifiOnly],
-);
+Displays a download progress modal dialog with optional recent download history.
 
-// Listen to progress updates
-task.progressStream.listen((progress) {
-  print("Progress: ${progress.percentage.toStringAsFixed(1)}%");
-  print("Speed: ${progress.formattedSpeed}");
-  print("ETA: ${progress.formattedEta}");
-});
-
-// Listen to status changes
-task.statusStream.listen((updatedTask) {
-  if (updatedTask.status == DownloadStatus.completed) {
-    print("Download completed! Saved to: ${updatedTask.filePath}");
-  } else if (updatedTask.status == DownloadStatus.failed) {
-    print("Download failed: ${updatedTask.error}");
-  }
-});
-```
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `context` | `BuildContext` | **Required** | The current build context. |
+| `url` | `String` | **Required** | The remote file URL to download. |
+| `fileName` | `String` | **Required** | Destination file name (e.g. `document.pdf`). |
+| `destinationDirectory` | `String?` | `null` | Custom directory path. If null, uses app downloads directory. |
+| `headers` | `Map<String, String>` | `{}` | Custom HTTP headers (e.g. Bearer auth token). |
+| `priority` | `DownloadPriority` | `DownloadPriority.high` | Priority level (`low`, `normal`, `high`). |
+| `overwrite` | `bool` | `true` | If false, auto-increments filename (`file(1).ext`) if file exists. |
+| `dialogTitle` | `String` | `'Downloading File...'` | Header title of the dialog. |
+| `showRecent` | `bool` | `false` | If true, displays past download history below active download. |
+| `dialogShape` | `ShapeBorder?` | `null` | Custom shape border for the dialog. |
+| `dialogBackgroundColor` | `Color?` | `null` | Custom background color for the dialog. |
+| `dialogTitleTextStyle` | `TextStyle?` | `null` | Custom text style for dialog title. |
+| `closeButtonText` | `String` | `'Close'` | Text for the close button. |
+| `closeButton` | `Widget?` | `null` | Custom close button widget. |
+| `cardBackgroundColor` | `Color?` | `null` | Card background color inside dialog. |
+| `borderRadius` | `BorderRadiusGeometry?` | `null` | Custom border radius for cards. |
+| `progressBarColor` | `Color?` | `null` | Progress bar fill color. |
+| `accentColor` | `Color?` | `null` | Accent color for icons and highlights. |
+| `fileNameTextStyle` | `TextStyle?` | `null` | Custom style for file name text. |
+| `progressTextStyle` | `TextStyle?` | `null` | Custom style for percentage and size ratio text. |
+| `speedTextStyle` | `TextStyle?` | `null` | Custom style for live speed text. |
+| `badgeBuilder` | `Widget Function(DownloadStatus)?` | `null` | Custom status badge builder. |
+| `iconBuilder` | `Widget Function(String)?` | `null` | Custom file icon builder. |
 
 ---
 
-## 🎨 Full UI Customization
+### 2. `AppDownloadService.startDownload(...)` & `downloadFile(...)`
 
-Customize colors, typography, progress bar colors, borders, custom icons, and button visibility across all widgets:
+Triggers background download without popping up a dialog modal.
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `url` | `String` | **Required** | Remote URL to download. |
+| `fileName` | `String` | **Required** | Target file name. |
+| `destinationDirectory` | `String?` | `null` | Custom output directory path. |
+| `headers` | `Map<String, String>` | `{}` | Custom HTTP request headers. |
+| `priority` | `DownloadPriority` | `DownloadPriority.high` | Priority (`low`, `normal`, `high`). |
+| `overwrite` | `bool` | `true` | Auto-renames if false. |
+| `onProgress` | `Function(DownloadProgress)?` | `null` | Live progress callback. |
+| `onStatusChanged` | `Function(DownloadTask)?` | `null` | Task status change callback. |
+| `onSuccess` | `Function(String filePath)?` | `null` | Download completion callback. |
+| `onError` | `Function(String error)?` | `null` | Download failure callback. |
+
+---
+
+### 3. `AppDownloadService.currentDownloadWidget(...)` / `CurrentDownloadWidget(...)`
+
+In-page widget that renders ONLY the active downloading task on screen.
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `taskId` | `String?` | `null` | Specific task ID to monitor. If null, monitors any active task. |
+| `fileName` | `String?` | `null` | Specific file name to monitor. |
+| `margin` | `EdgeInsetsGeometry?` | `null` | External card margin. |
+| `padding` | `EdgeInsetsGeometry?` | `null` | Internal card padding. |
+| `onCompleted` | `VoidCallback?` | `null` | Callback when download completes. |
+| `onCancelled` | `VoidCallback?` | `null` | Callback when download is cancelled. |
+| `cardBackgroundColor` | `Color?` | `null` | Card background color. |
+| `borderRadius` | `BorderRadiusGeometry?` | `null` | Border radius. |
+| `progressBarColor` | `Color?` | `null` | Progress bar fill color. |
+| `accentColor` | `Color?` | `null` | Icon accent color. |
+| `showPauseButton` | `bool` | `true` | Show/hide pause button. |
+| `showResumeButton` | `bool` | `true` | Show/hide resume button. |
+| `showRetryButton` | `bool` | `true` | Show/hide retry button. |
+| `showCancelButton` | `bool` | `true` | Show/hide cancel button. |
+
+---
+
+### 4. `NativeDownloadManager.download(...)` (Raw Engine API)
+
+Low-level download trigger method.
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `url` | `String` | **Required** | Remote resource URL. |
+| `fileName` | `String` | **Required** | Output file name. |
+| `destinationDirectory` | `String?` | `null` | Custom directory. |
+| `headers` | `Map<String, String>` | `{}` | HTTP headers. |
+| `cookies` | `Map<String, String>` | `{}` | HTTP cookies. |
+| `priority` | `DownloadPriority` | `DownloadPriority.normal` | Priority (`low`, `normal`, `high`). |
+| `networkConstraints` | `List<NetworkConstraint>` | `[]` | Constraints (`wifiOnly`, `chargingOnly`). |
+| `overwrite` | `bool` | `true` | Overwrite policy. |
+| `checksum` | `String?` | `null` | Hash string for validation. |
+| `checksumAlgorithm` | `String?` | `null` | Hash algorithm (`md5`, `sha256`). |
+
+---
+
+## 🎨 Full UI Customization Example
 
 ```dart
 AppDownloadService.currentDownloadWidget(
-  // 🎨 Styling
+  // 🎨 Custom Styling
   cardBackgroundColor: Colors.grey.shade900,
   borderRadius: BorderRadius.circular(16),
   progressBarColor: Colors.tealAccent,
@@ -207,13 +268,13 @@ AppDownloadService.currentDownloadWidget(
   progressTextStyle: const TextStyle(color: Colors.white70, fontSize: 11),
   speedTextStyle: const TextStyle(color: Colors.tealAccent, fontSize: 11),
 
-  // 🔘 Control Button Visibility
+  // 🔘 Action Controls
   showPauseButton: true,
   showResumeButton: true,
   showRetryButton: true,
   showCancelButton: true,
 
-  // ⚡ Custom Badge & Icon Builders
+  // ⚡ Custom Builders
   badgeBuilder: (status) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
     decoration: BoxDecoration(color: Colors.teal.withOpacity(0.2), borderRadius: BorderRadius.circular(4)),
@@ -229,8 +290,6 @@ AppDownloadService.currentDownloadWidget(
 
 ### Custom Headers & Auth Bearer Tokens
 
-Set custom network parameters for authenticated endpoints:
-
 ```dart
 final task = await NativeDownloadManager.download(
   url: "https://api.example.com/download/file",
@@ -244,8 +303,6 @@ final task = await NativeDownloadManager.download(
 
 ### Checksum Integrity Verification
 
-Verify file integrity using MD5 or SHA-256 automatically upon completion:
-
 ```dart
 final task = await NativeDownloadManager.download(
   url: "https://example.com/release.zip",
@@ -255,24 +312,22 @@ final task = await NativeDownloadManager.download(
 );
 ```
 
-### Concurrency & Queue Management
+### Concurrency & Queue Control
 
 ```dart
 // Set active concurrent download limit
 await NativeDownloadManager().setConcurrencyLimit(3);
 
-// Get all tasks (enqueued, running, completed, etc.)
+// Get all tasks
 List<DownloadTask> allTasks = await NativeDownloadManager().downloads();
 
-// Clear completed/failed download history
+// Clear history
 await NativeDownloadManager().clearHistory();
 ```
 
 ---
 
 ## 📱 Ready-to-Use UI Templates
-
-`native_download_manager` includes 10 pure dynamic UI templates out of the box:
 
 1. `DashboardTemplatePage` - Downloads Dashboard & Stats Hub
 2. `PdfInvoiceTemplatePage` - Single & Multiple PDF Invoice Downloader
