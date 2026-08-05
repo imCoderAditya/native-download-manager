@@ -33,7 +33,8 @@ class _AuthHeaderTemplatePageState extends State<AuthHeaderTemplatePage> {
       text: widget.initialToken ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
     );
     _customHeaderController = TextEditingController(
-      text: widget.initialCustomHeader ?? 'X-App-Client-ID: mobile_flutter_v1.0',
+      text:
+          widget.initialCustomHeader ?? 'X-App-Client-ID: mobile_flutter_v1.0',
     );
   }
 
@@ -58,15 +59,16 @@ class _AuthHeaderTemplatePageState extends State<AuthHeaderTemplatePage> {
     }
 
     try {
-      await NativeDownloadManager.download(
-        url: widget.protectedUrl ?? 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      await AppDownloadService.startDownload(
+        url: widget.protectedUrl ??
+            'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         fileName: widget.fileName ?? 'Protected_Report.pdf',
         headers: headers,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enqueued authenticated download!')),
+        const SnackBar(content: Text('Started authenticated download!')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -80,7 +82,7 @@ class _AuthHeaderTemplatePageState extends State<AuthHeaderTemplatePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,18 +97,23 @@ class _AuthHeaderTemplatePageState extends State<AuthHeaderTemplatePage> {
                       children: [
                         Icon(Icons.security_rounded, color: Colors.teal),
                         SizedBox(width: 8),
-                        Text('API Authentication & Custom Headers', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('API Authentication & Custom Headers',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _tokenController,
-                      decoration: const InputDecoration(labelText: 'Bearer Auth Token', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                          labelText: 'Bearer Auth Token',
+                          border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _customHeaderController,
-                      decoration: const InputDecoration(labelText: 'Custom Key:Value Header', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                          labelText: 'Custom Key:Value Header',
+                          border: OutlineInputBorder()),
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
@@ -118,6 +125,10 @@ class _AuthHeaderTemplatePageState extends State<AuthHeaderTemplatePage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Live Active Download Progress Card
+            AppDownloadService.currentDownloadWidget(),
           ],
         ),
       ),

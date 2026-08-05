@@ -140,16 +140,23 @@ class _DashboardTemplatePageState extends State<DashboardTemplatePage> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         onPressed: _startCustomDownload,
-                        icon: const Icon(Icons.add_task_rounded),
+                        icon: const Icon(Icons.cloud_download_rounded),
                         label: const Text('Start Download'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.teal,
+                          foregroundColor: Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
+            // Live Active Download Widget
+            AppDownloadService.currentDownloadWidget(),
+            const SizedBox(height: 12),
             const Text('Active Tasks', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 10),
 

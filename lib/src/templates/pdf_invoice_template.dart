@@ -104,6 +104,9 @@ class _PdfInvoiceTemplatePageState extends State<PdfInvoiceTemplatePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // LIVE ACTIVE DOWNLOAD CARD
+            AppDownloadService.currentDownloadWidget(),
+
             // SINGLE PDF HERO CARD
             if (isSingleMode) ...[
               Card(

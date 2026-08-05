@@ -1,8 +1,12 @@
 package com.native_download_manager
 
+import android.content.ContentValues
 import android.content.Context
+import android.media.MediaScannerConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import java.io.File
 import java.io.FileOutputStream
@@ -49,21 +53,11 @@ class DownloadWorker(
         dbHelper.updateTaskProgress(request.id, 1, 0, 0, 0.0, null, null)
 
         try {
-            // Determine storage directory
+            // Determine storage directory safely
             var destDir: File? = null
             if (!request.destinationDirectory.isNullOrEmpty()) {
                 destDir = File(request.destinationDirectory)
-            } else {
-                try {
-                    val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                    if (publicDir != null && (publicDir.exists() || publicDir.mkdirs())) {
-                        destDir = publicDir
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
             }
-
             if (destDir == null || (!destDir.exists() && !destDir.mkdirs())) {
                 destDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                     ?: context.filesDir
@@ -109,6 +103,10 @@ class DownloadWorker(
                 connection.instanceFollowRedirects = false // we follow manually
 
                 // Request headers
+                val hasUserAgent = request.headers.keys.any { it?.equals("User-Agent", ignoreCase = true) == true }
+                if (!hasUserAgent) {
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                }
                 request.headers.forEach { (key, value) ->
                     if (key != null && value != null) {
                         connection.setRequestProperty(key, value)
@@ -276,13 +274,55 @@ class DownloadWorker(
 
     private fun scanFile(context: Context, file: File) {
         try {
-            android.media.MediaScannerConnection.scanFile(
+            MediaScannerConnection.scanFile(
                 context,
                 arrayOf(file.absolutePath),
                 null
-            ) { path, uri ->
-                // Media scan complete
+            ) { _, _ -> }
+
+            // Copy/Insert into Public Downloads folder so it shows up in My Files app
+            copyToPublicDownloads(context, file, file.name)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun copyToPublicDownloads(context: Context, sourceFile: File, fileName: String) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, getMimeType(fileName))
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    resolver.openOutputStream(uri)?.use { out ->
+                        sourceFile.inputStream().use { input ->
+                            input.copyTo(out)
+                        }
+                    }
+                }
+            } else {
+                val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!publicDir.exists()) publicDir.mkdirs()
+                val destFile = File(publicDir, fileName)
+                sourceFile.copyTo(destFile, overwrite = true)
+                MediaScannerConnection.scanFile(context, arrayOf(destFile.absolutePath), null, null)
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun getMimeType(fileName: String): String {
+        val extension = fileName.substringAfterLast('.', "")
+        return if (extension.isNotEmpty()) {
+            MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.lowercase(Locale.US))
+                ?: "application/octet-stream"
+        } else {
+            "application/octet-stream"
+        }
     }
 }

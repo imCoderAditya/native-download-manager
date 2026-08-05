@@ -26,7 +26,7 @@ class _PriorityQueueTemplatePageState extends State<PriorityQueueTemplatePage> {
     final baseName = widget.sampleFileName ?? 'Priority_Task';
     final name = '${baseName}_${_selectedPriority.name}_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}.pdf';
 
-    await NativeDownloadManager.download(
+    await AppDownloadService.startDownload(
       url: url,
       fileName: name,
       priority: _selectedPriority,
@@ -42,7 +42,7 @@ class _PriorityQueueTemplatePageState extends State<PriorityQueueTemplatePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
@@ -61,18 +61,29 @@ class _PriorityQueueTemplatePageState extends State<PriorityQueueTemplatePage> {
                         ButtonSegment(value: DownloadPriority.low, label: Text('Low')),
                       ],
                       selected: {_selectedPriority},
-                      onSelectionChanged: (set) => setState(() => _selectedPriority = set.first),
+                      onSelectionChanged: (set) {
+                        setState(() {
+                          _selectedPriority = set.first;
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: _enqueuePriorityTask,
-                      icon: const Icon(Icons.low_priority_rounded),
-                      label: const Text('Schedule Priority Download'),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _enqueuePriorityTask,
+                        icon: const Icon(Icons.low_priority_rounded),
+                        label: Text('Enqueue ${_selectedPriority.name.toUpperCase()} Task'),
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Live Active Download Progress Card
+            AppDownloadService.currentDownloadWidget(),
           ],
         ),
       ),

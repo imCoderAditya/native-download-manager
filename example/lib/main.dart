@@ -81,24 +81,21 @@ class HomePage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // 🔴 BUTTON 1: Download Catbox PDF
+              // 🔴 BUTTON 1: Download Catbox PDF (In-Page Progress UI)
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // ⚡ Call downloadPdf helper function on button press!
-                    AppDownloadService.downloadWithDialog(
-                      context: context,
-                      overwrite: false,
-                      showRecent: false,
+                    // ⚡ Call startDownload function on button press!
+                    AppDownloadService.startDownload(
                       url: 'https://files.catbox.moe/vxirfe.pdf',
                       fileName: 'vxirfe_document1.pdf',
-                      dialogTitle: 'Downloading Catbox PDF...',
+                      overwrite: false,
                     );
                   },
-                  icon: const Icon(Icons.picture_as_pdf_rounded),
-                  label: const Text('Download Catbox PDF (Button Call)'),
+                  icon: const Icon(Icons.download_rounded),
+                  label: const Text('Start Download (In-Page Progress)'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal,
                     foregroundColor: Colors.white,
@@ -108,7 +105,12 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
+
+              // 🌟 Live Active Download Progress Card on Home Screen (Called via AppDownloadService helper function)
+              AppDownloadService.currentDownloadWidget(),
+
+              const SizedBox(height: 10),
 
               // 🔵 BUTTON 2: View Active & Recent Downloads Dialog
               SizedBox(

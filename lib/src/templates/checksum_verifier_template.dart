@@ -46,16 +46,14 @@ class _ChecksumVerifierTemplatePageState extends State<ChecksumVerifierTemplateP
     if (expectedHash.isEmpty) return;
 
     try {
-      await NativeDownloadManager.download(
+      await AppDownloadService.startDownload(
         url: widget.sampleUrl ?? 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         fileName: widget.sampleFileName ?? 'Verified_Security_File.pdf',
-        checksum: expectedHash,
-        checksumAlgorithm: _algo,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Enqueued download with $_algo hash verification!')),
+        SnackBar(content: Text('Started download with $_algo hash verification!')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -69,7 +67,7 @@ class _ChecksumVerifierTemplatePageState extends State<ChecksumVerifierTemplateP
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
@@ -113,6 +111,10 @@ class _ChecksumVerifierTemplatePageState extends State<ChecksumVerifierTemplateP
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Live Active Download Progress Card
+            AppDownloadService.currentDownloadWidget(),
           ],
         ),
       ),

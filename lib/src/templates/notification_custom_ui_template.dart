@@ -15,7 +15,7 @@ class NotificationCustomUiTemplatePage extends StatelessWidget {
   });
 
   void _triggerDownloadWithInteractiveNotification(BuildContext context) async {
-    await NativeDownloadManager.download(
+    await AppDownloadService.startDownload(
       url: sampleUrl ?? 'https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
       fileName: sampleFileName ?? 'Notification_Demo_Video.mp4',
       priority: DownloadPriority.high,
@@ -33,7 +33,7 @@ class NotificationCustomUiTemplatePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
@@ -63,6 +63,10 @@ class NotificationCustomUiTemplatePage extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Live Active Download Progress Card
+            AppDownloadService.currentDownloadWidget(),
           ],
         ),
       ),
