@@ -1,0 +1,9 @@
+# GitHub Linguist Overrides
+# Hide build output, reports, and generated files from GitHub repository language stats
+
+build/** linguist-vendored
+example/build/** linguist-vendored
+*.html linguist-vendored
+*.html linguist-generated
+pigeons/** linguist-generated
+lib/src/native_api.g.dart linguist-generated
