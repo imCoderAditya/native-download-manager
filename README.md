@@ -5,25 +5,29 @@
 [![Platform](https://img.shields.io/badge/platform-android%20%7C%20ios-lightgrey.svg)](https://pub.dev/packages/native_download_manager)
 [![Flutter](https://img.shields.io/badge/Flutter-%E2%9C%93-cyan.svg)](https://flutter.dev)
 
-A production-ready, high-performance Flutter package for **Native Background Downloading** on Android and iOS. Built with native background services, real-time progress streams, live dialogs, in-page progress widgets, automatic duplicate file renaming, MediaStore/Files app visibility, and full UI customization.
+A production-ready, high-performance Flutter package providing robust, native background downloading for Android and iOS. 
+
+It manages foreground services, custom notifications, in-page live progress cards, sleek download dialogs, priority-based queues, network/charging/battery constraints, integrity checks, and auto-resume capabilities across app restarts and device reboots.
 
 ---
 
-## ✨ Key Features
+## 🚀 Key Features
 
-* **⚡ Native Background Downloads**: Continues downloading seamlessly even when the app is suspended, minimized, or terminated.
+* **⚡ Native Background Downloading**: Keeps downloading files seamlessly even when the app is suspended, minimized, or terminated by the OS.
 * **🖼️ In-Page Live Progress Widget**: Easily embed `AppDownloadService.currentDownloadWidget()` directly in any screen to show live download progress cards without popups.
 * **💬 Download Progress Dialog**: Trigger downloads with an automatic progress modal using `AppDownloadService.downloadWithDialog(...)`.
 * **📁 Public Downloads App Visibility**:
   * **Android**: Uses `MediaStore.Downloads` so completed files automatically appear at the top of the device's **"My Files" / "Downloads"** app.
   * **iOS**: Fully integrated with the Apple **Files** app (`On My iPhone` -> `[App Name]`).
-* **🔄 Graceful Duplicate Handling**: Downloading with `overwrite: false` automatically resolves file name collisions (e.g. `file.pdf` -> `file(1).pdf` -> `file(2).pdf`) without throwing errors.
+* **🔄 Graceful Duplicate Handling**: Downloading with `overwrite: false` automatically resolves file name collisions (e.g., `document.pdf` -> `document(1).pdf` -> `document(2).pdf`) without throwing errors.
+* **🔄 Auto-Resume Recovery**: Resumes active and pending downloads automatically on app restart and after device reboots (Android).
+* **🚦 Concurrency & Priority Queue**: Configure concurrent download limits and assign priority levels (`low`, `normal`, `high`) to tasks.
+* **🔋 Constraints Monitoring**: Limit downloads to WiFi-only, charging-only, or cellular-restricted conditions. Tasks automatically pause when constraints are violated and resume when satisfied.
+* **📊 Accurate Real-Time Progress**: Streams instant progress metrics (percentage, bytes downloaded, total bytes, speed in B/s, KB/s, or MB/s, and ETA).
+* **🔒 Integrity Verification**: Validate file checksums using MD5 or SHA-256 automatically upon completion.
+* **🌐 HTTP Configuration**: Set custom HTTP headers, cookies, redirects, and authorization (Basic, Bearer, Signed URLs).
+* **📄 Range Requests Support**: Resumes partially downloaded files from where they left off by sending HTTP Range requests.
 * **🎨 100% Full UI Customization**: Customize card background colors, progress bar colors, typography, border radius, action button visibility, custom badges, and custom icons.
-* **🔄 Auto-Resume & Reconnection**: Automatically resumes active downloads on app restarts and device reboots (Android).
-* **🚦 Priority Queues & Concurrency**: Assign task priorities (`low`, `normal`, `high`) and set global concurrency limits.
-* **🔋 Battery & Network Constraints**: Restrict downloads to WiFi-only or charging-only conditions.
-* **🔒 Integrity Checksum**: Verify file hash integrity using MD5 or SHA-256 upon completion.
-* **🔐 Custom Headers & Auth Tokens**: Supports Bearer tokens, custom headers, cookies, and signed URLs.
 
 ---
 
@@ -48,7 +52,7 @@ import 'package:native_download_manager/native_download_manager.dart';
 
 ### 🤖 Android Setup
 
-Add permissions to your `android/app/src/main/AndroidManifest.xml`:
+1. Add the permissions to your `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
@@ -61,7 +65,7 @@ Add permissions to your `android/app/src/main/AndroidManifest.xml`:
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
 ```
 
-Inside `<application>`, register the native background service:
+2. Register the service and boot receiver inside the `<application>` tag:
 
 ```xml
 <service
@@ -84,9 +88,13 @@ Inside `<application>`, register the native background service:
 
 ### 🍏 iOS Setup
 
-Set minimum deployment target to **iOS 13.0** in your `Podfile`.
+1. Ensure your deployment target is at least **iOS 13.0** in your `Podfile`:
 
-To make downloaded files visible in the iOS **Files** app (under `On My iPhone`), add these keys to `ios/Runner/Info.plist`:
+```ruby
+platform :ios, '13.0'
+```
+
+2. To make files visible in the iOS **Files** app (under "On My iPhone"), add the following keys to your `ios/Runner/Info.plist`:
 
 ```xml
 <key>UIFileSharingEnabled</key>
@@ -97,11 +105,11 @@ To make downloaded files visible in the iOS **Files** app (under `On My iPhone`)
 
 ---
 
-## 🚀 Usage Guide
+## 📖 Quick Start
 
 ### 1. In-Page Download (No Popup Dialog)
 
-Trigger a background download from any button click, and render a live progress card directly on your screen:
+Trigger a background download on button press, and render a live progress card directly on your screen:
 
 ```dart
 // 1. Trigger background download on button press
@@ -110,11 +118,11 @@ ElevatedButton.icon(
     AppDownloadService.startDownload(
       url: 'https://files.catbox.moe/vxirfe.pdf',
       fileName: 'vxirfe_document.pdf',
-      overwrite: false, // Auto-renames to vxirfe_document(1).pdf if exists
+      overwrite: false, // Auto-renames to vxirfe_document(1).pdf if file exists
     );
   },
   icon: const Icon(Icons.download_rounded),
-  label: const Text('Download Invoice'),
+  label: const Text('Download Document'),
 ),
 
 // 2. Place this widget anywhere on your screen UI
@@ -123,9 +131,9 @@ AppDownloadService.currentDownloadWidget()
 
 ---
 
-### 2. Download with Progress Dialog
+### 2. Download with Progress Dialog Modal
 
-Trigger a download that automatically opens a sleek progress dialog modal:
+Trigger a download that automatically opens a progress dialog modal:
 
 ```dart
 AppDownloadService.downloadWithDialog(
@@ -134,7 +142,7 @@ AppDownloadService.downloadWithDialog(
   fileName: 'document.pdf',
   dialogTitle: 'Downloading PDF Document...',
   overwrite: false,
-  showRecent: false, // Set to true to display recent download history as well
+  showRecent: false, // Set to true to show past download history as well
 );
 ```
 
@@ -150,9 +158,41 @@ AppDownloadService.showDownloadsDialog(context);
 
 ---
 
-### 4. Advanced Customization
+### 4. Direct Engine API
 
-You can fully customize colors, typography, progress bar colors, borders, custom icons, and button visibility across all widgets:
+For low-level control, use `NativeDownloadManager`:
+
+```dart
+// Start downloading a file
+final task = await NativeDownloadManager.download(
+  url: "https://example.com/movie.mp4",
+  fileName: "movie.mp4",
+  priority: DownloadPriority.high,
+  networkConstraints: [NetworkConstraint.wifiOnly],
+);
+
+// Listen to progress updates
+task.progressStream.listen((progress) {
+  print("Progress: ${progress.percentage.toStringAsFixed(1)}%");
+  print("Speed: ${progress.formattedSpeed}");
+  print("ETA: ${progress.formattedEta}");
+});
+
+// Listen to status changes
+task.statusStream.listen((updatedTask) {
+  if (updatedTask.status == DownloadStatus.completed) {
+    print("Download completed! Saved to: ${updatedTask.filePath}");
+  } else if (updatedTask.status == DownloadStatus.failed) {
+    print("Download failed: ${updatedTask.error}");
+  }
+});
+```
+
+---
+
+## 🎨 Full UI Customization
+
+Customize colors, typography, progress bar colors, borders, custom icons, and button visibility across all widgets:
 
 ```dart
 AppDownloadService.currentDownloadWidget(
@@ -185,37 +225,52 @@ AppDownloadService.currentDownloadWidget(
 
 ---
 
-### 5. Raw Manager API
+## 💡 Advanced Features
 
-For advanced users needing direct access to stream controls and queue management:
+### Custom Headers & Auth Bearer Tokens
+
+Set custom network parameters for authenticated endpoints:
 
 ```dart
-// Start a download task
 final task = await NativeDownloadManager.download(
-  url: 'https://example.com/file.zip',
-  fileName: 'file.zip',
-  priority: DownloadPriority.high,
-  headers: {'Authorization': 'Bearer YOUR_TOKEN'},
+  url: "https://api.example.com/download/file",
+  fileName: "secure_doc.pdf",
+  headers: {
+    "Authorization": "Bearer YOUR_JWT_TOKEN",
+    "Accept": "application/pdf",
+  },
 );
+```
 
-// Control active task
-await task.pause();
-await task.resume();
-await task.cancel();
-await task.retry();
-await task.delete(deleteFile: true);
+### Checksum Integrity Verification
 
-// Listen to progress streams
-task.progressStream.listen((progress) {
-  print('Percentage: ${progress.percentage}%');
-  print('Speed: ${progress.formattedSpeed}');
-  print('Size: ${progress.formattedSizeRatio}');
-});
+Verify file integrity using MD5 or SHA-256 automatically upon completion:
+
+```dart
+final task = await NativeDownloadManager.download(
+  url: "https://example.com/release.zip",
+  fileName: "release.zip",
+  checksum: "9a0a1a2b3c4d5e6f...",
+  checksumAlgorithm: "sha256", // Or "md5"
+);
+```
+
+### Concurrency & Queue Management
+
+```dart
+// Set active concurrent download limit
+await NativeDownloadManager().setConcurrencyLimit(3);
+
+// Get all tasks (enqueued, running, completed, etc.)
+List<DownloadTask> allTasks = await NativeDownloadManager().downloads();
+
+// Clear completed/failed download history
+await NativeDownloadManager().clearHistory();
 ```
 
 ---
 
-## 🎨 Included Ready-to-Use UI Templates
+## 📱 Ready-to-Use UI Templates
 
 `native_download_manager` includes 10 pure dynamic UI templates out of the box:
 
@@ -232,7 +287,7 @@ task.progressStream.listen((progress) {
 
 ---
 
-## 🧪 Verification & Quality Assurance
+## 🧪 Quality Assurance
 
 * **`flutter analyze`**: `No issues found!` (0 warnings, 0 errors)
 * **`flutter test`**: `All 9 unit tests passed!`
