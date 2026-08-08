@@ -263,7 +263,7 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         
         let tracker = speedTrackers[taskId] ?? SpeedTracker()
         speedTrackers[taskId] = tracker
-        tracker.update(bytesWritten: bytesWritten)
+        let shouldEmit = tracker.update(bytesWritten: bytesWritten) || (totalBytesWritten == totalBytesExpectedToWrite)
         
         let progress = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0.0
         
@@ -284,14 +284,16 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
         
         self.tasks[taskId] = updatedTask
         
-        DispatchQueue.main.async {
-            self.flutterApi?.onTaskProgressUpdated(
-                taskId: taskId,
-                downloadedBytes: totalBytesWritten,
-                totalBytes: totalBytesExpectedToWrite,
-                speed: tracker.speed,
-                etaSeconds: Int64(tracker.getEta(totalBytesRemaining: totalBytesExpectedToWrite - totalBytesWritten))
-            ) { _ in }
+        if shouldEmit {
+            DispatchQueue.main.async {
+                self.flutterApi?.onTaskProgressUpdated(
+                    taskId: taskId,
+                    downloadedBytes: totalBytesWritten,
+                    totalBytes: totalBytesExpectedToWrite,
+                    speed: tracker.speed,
+                    etaSeconds: Int64(tracker.getEta(totalBytesRemaining: totalBytesExpectedToWrite - totalBytesWritten))
+                ) { _ in }
+            }
         }
     }
     
@@ -390,7 +392,7 @@ class DownloadManager: NSObject, URLSessionDownloadDelegate {
 
 // Helper models and extensions
 class SpeedTracker {
-    private var lastBytesWritten: Int64 = 0
+    private var bytesAccumulated: Int64 = 0
     private var lastUpdateTime: Date = Date()
     private var rollingSpeed: Double = 0.0
     
@@ -398,15 +400,20 @@ class SpeedTracker {
         return rollingSpeed
     }
     
-    func update(bytesWritten: Int64) {
+    @discardableResult
+    func update(bytesWritten: Int64) -> Bool {
+        bytesAccumulated += bytesWritten
         let now = Date()
         let timeInterval = now.timeIntervalSince(lastUpdateTime)
         
-        if timeInterval >= 0.5 {
-            let currentSpeed = Double(bytesWritten) / timeInterval
+        if timeInterval >= 0.25 {
+            let currentSpeed = Double(bytesAccumulated) / timeInterval
             rollingSpeed = rollingSpeed == 0 ? currentSpeed : (rollingSpeed * 0.7 + currentSpeed * 0.3)
             lastUpdateTime = now
+            bytesAccumulated = 0
+            return true
         }
+        return false
     }
     
     func getEta(totalBytesRemaining: Int64) -> Int {

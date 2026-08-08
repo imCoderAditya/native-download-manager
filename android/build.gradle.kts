@@ -1,15 +1,15 @@
 group = "com.native_download_manager"
-version = "1.0-SNAPSHOT"
+version = "1.0.4"
 
 buildscript {
-    val kotlinVersion = "2.3.20"
+    val kotlinVersion = "1.9.22"
     repositories {
         google()
         mavenCentral()
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:9.0.1")
+        classpath("com.android.tools.build:gradle:8.2.1")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     }
 }
@@ -28,7 +28,7 @@ plugins {
 android {
     namespace = "com.native_download_manager"
 
-    compileSdk = 36
+    compileSdk = 34
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -46,6 +46,7 @@ android {
 
     defaultConfig {
         minSdk = 24
+        consumerProguardFiles("proguard-rules.pro")
     }
 
     testOptions {
@@ -75,3 +76,4 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.mockito:mockito-core:5.0.0")
 }
+

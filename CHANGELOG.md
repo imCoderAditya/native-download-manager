@@ -1,3 +1,12 @@
+## 1.0.5
+
+- Fixed iOS CocoaPods source files structure by moving native Swift files to `Classes/` directory for full pub.dev consumer compatibility.
+- Fixed invalid Kotlin (`1.9.22`) and Android Gradle Plugin (`8.2.1`) build configurations in `android/build.gradle.kts`.
+- Fixed real-time reactive UI progress updates across `CurrentDownloadWidget`, `RecentDownloadsDialogList`, `DashboardTemplatePage`, and `BatchDownloadTemplatePage`.
+- Calibrated native progress emission frequency to 250ms interval on Android and iOS for smooth progress bar animations and accurate speed calculations.
+- Added ProGuard consumer keep rules (`android/proguard-rules.pro`) for release build compatibility.
+- Added Android 14 Foreground Service crash prevention guards.
+
 ## 1.0.4
 
 - Added `AppDownloadService.currentDownloadWidget()` & `CurrentDownloadWidget` in-page live progress card component.

@@ -39,12 +39,41 @@ class _DashboardTemplatePageState extends State<DashboardTemplatePage> {
 
     _refresh();
 
-    _statusSub = NativeDownloadManager().statusStream.listen((_) {
-      _refresh();
+    _statusSub = NativeDownloadManager().statusStream.listen((task) {
+      if (mounted) {
+        setState(() {
+          final index = _tasks.indexWhere((t) => t.id == task.id);
+          if (index != -1) {
+            _tasks[index] = task;
+          } else {
+            _tasks.insert(0, task);
+          }
+        });
+        _refresh();
+      }
     });
 
-    _progressSub = NativeDownloadManager().progressStream.listen((_) {
-      if (mounted) setState(() {});
+    _progressSub = NativeDownloadManager().progressStream.listen((progress) {
+      if (mounted) {
+        setState(() {
+          final index = _tasks.indexWhere((t) => t.id == progress.taskId);
+          if (index != -1) {
+            final t = _tasks[index];
+            final isComplete = progress.totalBytes > 0 && progress.downloadedBytes >= progress.totalBytes;
+            _tasks[index] = DownloadTask(
+              id: t.id,
+              url: t.url,
+              fileName: t.fileName,
+              filePath: t.filePath,
+              status: isComplete ? DownloadStatus.completed : t.status,
+              progress: progress,
+              error: t.error,
+            );
+          } else {
+            _refresh();
+          }
+        });
+      }
     });
   }
 

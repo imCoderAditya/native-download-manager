@@ -349,8 +349,18 @@ class _RecentDownloadsDialogListState extends State<RecentDownloadsDialogList> {
     super.initState();
     _loadTasks();
 
-    _statusSub = NativeDownloadManager().statusStream.listen((_) {
-      _loadTasks();
+    _statusSub = NativeDownloadManager().statusStream.listen((task) {
+      if (mounted) {
+        setState(() {
+          final index = _recentTasks.indexWhere((t) => t.id == task.id);
+          if (index != -1) {
+            _recentTasks[index] = task;
+          } else {
+            _recentTasks.insert(0, task);
+          }
+        });
+        _loadTasks();
+      }
     });
 
     _progressSub = NativeDownloadManager().progressStream.listen((progress) {
@@ -359,15 +369,18 @@ class _RecentDownloadsDialogListState extends State<RecentDownloadsDialogList> {
           final index = _recentTasks.indexWhere((t) => t.id == progress.taskId);
           if (index != -1) {
             final t = _recentTasks[index];
+            final isComplete = progress.totalBytes > 0 && progress.downloadedBytes >= progress.totalBytes;
             _recentTasks[index] = DownloadTask(
               id: t.id,
               url: t.url,
               fileName: t.fileName,
               filePath: t.filePath,
-              status: t.status,
+              status: isComplete ? DownloadStatus.completed : t.status,
               progress: progress,
               error: t.error,
             );
+          } else {
+            _loadTasks();
           }
         });
       }
@@ -630,6 +643,11 @@ class _CurrentDownloadWidgetState extends State<CurrentDownloadWidget> {
 
     _statusSub = NativeDownloadManager().statusStream.listen((task) {
       if (mounted) {
+        if (_activeTask == null || _activeTask!.id == task.id || task.status == DownloadStatus.downloading) {
+          setState(() {
+            _activeTask = task;
+          });
+        }
         if (task.status == DownloadStatus.completed &&
             _activeTask?.id == task.id) {
           widget.onCompleted?.call();
@@ -642,20 +660,23 @@ class _CurrentDownloadWidgetState extends State<CurrentDownloadWidget> {
     });
 
     _progressSub = NativeDownloadManager().progressStream.listen((progress) {
-      if (mounted &&
-          _activeTask != null &&
-          progress.taskId == _activeTask!.id) {
-        setState(() {
-          _activeTask = DownloadTask(
-            id: _activeTask!.id,
-            url: _activeTask!.url,
-            fileName: _activeTask!.fileName,
-            filePath: _activeTask!.filePath,
-            status: _activeTask!.status,
-            progress: progress,
-            error: _activeTask!.error,
-          );
-        });
+      if (mounted) {
+        if (_activeTask != null && progress.taskId == _activeTask!.id) {
+          setState(() {
+            final isComplete = progress.totalBytes > 0 && progress.downloadedBytes >= progress.totalBytes;
+            _activeTask = DownloadTask(
+              id: _activeTask!.id,
+              url: _activeTask!.url,
+              fileName: _activeTask!.fileName,
+              filePath: _activeTask!.filePath,
+              status: isComplete ? DownloadStatus.completed : _activeTask!.status,
+              progress: progress,
+              error: _activeTask!.error,
+            );
+          });
+        } else if (_activeTask == null) {
+          _findActiveTask();
+        }
       }
     });
   }

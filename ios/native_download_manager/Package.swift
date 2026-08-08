@@ -19,7 +19,8 @@ let package = Package(
             name: "native_download_manager",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework")
-            ]
+            ],
+            path: "../../Classes"
         )
     ]
 )

@@ -334,14 +334,22 @@ class DownloadManagerController private constructor(private val context: Context
             intent.putExtra(DownloadService.EXTRA_PROGRESS, ((task?.progress ?: 0.0) * 100).toInt())
             intent.putExtra(DownloadService.EXTRA_STATUS, task?.status?.toInt() ?: 1)
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start foreground service: ${e.message}")
             }
         } else {
-            intent.action = DownloadService.ACTION_STOP
-            context.stopService(intent)
+            try {
+                intent.action = DownloadService.ACTION_STOP
+                context.stopService(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to stop foreground service: ${e.message}")
+            }
         }
     }
 

@@ -197,7 +197,7 @@ class DownloadWorker(
                 val currentTime = System.currentTimeMillis()
                 val timeDiff = currentTime - lastUpdateTimestamp
 
-                if (timeDiff >= 1000) {
+                if (timeDiff >= 250) {
                     speed = (bytesDownloadedSinceLastUpdate.toDouble() / (timeDiff.toDouble() / 1000.0))
                     val progress = if (totalBytes > 0) downloadedBytes.toDouble() / totalBytes.toDouble() else 0.0
                     val remainingBytes = if (totalBytes > 0) totalBytes - downloadedBytes else 0L

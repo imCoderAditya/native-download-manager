@@ -23,18 +23,55 @@ class _BatchDownloadTemplatePageState extends State<BatchDownloadTemplatePage> {
   late int _concurrencyLimit;
   List<DownloadTask> _batchTasks = [];
   late StreamSubscription<DownloadTask> _statusSub;
+  late StreamSubscription<DownloadProgress> _progressSub;
 
   @override
   void initState() {
     super.initState();
     _concurrencyLimit = widget.initialConcurrencyLimit;
     _refresh();
-    _statusSub = NativeDownloadManager().statusStream.listen((_) => _refresh());
+    _statusSub = NativeDownloadManager().statusStream.listen((task) {
+      if (mounted) {
+        setState(() {
+          final index = _batchTasks.indexWhere((t) => t.id == task.id);
+          if (index != -1) {
+            _batchTasks[index] = task;
+          } else {
+            _batchTasks.insert(0, task);
+          }
+        });
+        _refresh();
+      }
+    });
+
+    _progressSub = NativeDownloadManager().progressStream.listen((progress) {
+      if (mounted) {
+        setState(() {
+          final index = _batchTasks.indexWhere((t) => t.id == progress.taskId);
+          if (index != -1) {
+            final t = _batchTasks[index];
+            final isComplete = progress.totalBytes > 0 && progress.downloadedBytes >= progress.totalBytes;
+            _batchTasks[index] = DownloadTask(
+              id: t.id,
+              url: t.url,
+              fileName: t.fileName,
+              filePath: t.filePath,
+              status: isComplete ? DownloadStatus.completed : t.status,
+              progress: progress,
+              error: t.error,
+            );
+          } else {
+            _refresh();
+          }
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _statusSub.cancel();
+    _progressSub.cancel();
     super.dispose();
   }
 
